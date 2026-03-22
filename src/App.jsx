@@ -4,8 +4,14 @@ import "./App.css";
 /** 앱 전체 접근용 비밀번호 (데모용 — 운영 시 서버 인증으로 교체 권장) */
 const PASSWORD = "1234";
 
-/** localStorage에 로그인 유지 여부 저장 키 */
-const AUTH_STORAGE_KEY = "auth";
+/**
+ * 로그인 유지용 키 (도메인 전용).
+ * 예전 키 "auth"는 다른 사이트/테스트와 겹칠 수 있어 사용하지 않음.
+ */
+const AUTH_STORAGE_KEY = "dogrecom_remember_auth";
+
+/** 구버전 키 — 마이그레이션 시 제거 */
+const AUTH_LEGACY_KEY = "auth";
 
 /** 활동량 UI 값 → 계수 (LOW / NORMAL / HIGH) */
 const ACTIVITY_FACTOR = {
@@ -665,6 +671,8 @@ class App extends Component {
     this.state = {
       isAuthenticated: initialAuthenticated,
       inputPassword: "",
+      /** 체크 시에만 localStorage에 로그인 유지 저장 */
+      rememberLogin: false,
       page: "main",
       photoPreview: null,
       photoName: "",
@@ -690,6 +698,14 @@ class App extends Component {
   }
 
   componentDidMount() {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(AUTH_LEGACY_KEY);
+      }
+    } catch (e) {
+      // ignore
+    }
+
     if (!this.state.isAuthenticated) {
       const inputEl = this.passwordInputRef.current;
       if (inputEl) {
@@ -834,11 +850,19 @@ class App extends Component {
     });
   };
 
+  handleRememberLoginChange = (e) => {
+    this.setState({ rememberLogin: e.target.checked });
+  };
+
   handleLogin = () => {
     if (this.state.inputPassword === PASSWORD) {
       try {
         if (typeof localStorage !== "undefined") {
-          localStorage.setItem(AUTH_STORAGE_KEY, "true");
+          if (this.state.rememberLogin) {
+            localStorage.setItem(AUTH_STORAGE_KEY, "true");
+          } else {
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+          }
         }
       } catch (err) {
         // 저장 실패 시에도 화면 진입은 허용
@@ -846,10 +870,28 @@ class App extends Component {
       this.setState({
         isAuthenticated: true,
         inputPassword: "",
+        rememberLogin: false,
       });
     } else {
       alert("비밀번호가 틀렸습니다.");
     }
+  };
+
+  /** 로그아웃 → 비밀번호 화면으로 (저장된 자동 로그인도 해제) */
+  handleLogout = () => {
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        localStorage.removeItem(AUTH_LEGACY_KEY);
+      }
+    } catch (e) {
+      // ignore
+    }
+    this.setState({
+      isAuthenticated: false,
+      inputPassword: "",
+      rememberLogin: false,
+    });
   };
 
   /** 폼 제출(Enter) 시 로그인 */
@@ -1021,6 +1063,15 @@ class App extends Component {
               value={this.state.inputPassword}
               onChange={this.handleChange}
             />
+            <label className="auth-remember-label">
+              <input
+                type="checkbox"
+                className="auth-remember-input"
+                checked={this.state.rememberLogin}
+                onChange={this.handleRememberLoginChange}
+              />
+              <span>이 브라우저에서 로그인 유지 (다음 접속 시 비밀번호 생략)</span>
+            </label>
             <button type="submit" className="btn btn-primary auth-submit">
               입장하기
             </button>
@@ -1158,7 +1209,16 @@ class App extends Component {
     return (
       <div className="app">
         <header className="app-header">
-          <h1 className="app-title">우리 강아지 맞춤 간식 추천</h1>
+          <div className="app-header-row">
+            <h1 className="app-title">우리 강아지 맞춤 간식 추천</h1>
+            <button
+              type="button"
+              className="btn-app-logout"
+              onClick={this.handleLogout}
+            >
+              로그아웃
+            </button>
+          </div>
           {page === "main" ? null : (
             <p className="app-sub">
               {page === "input"
