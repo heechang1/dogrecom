@@ -936,3 +936,74 @@
   height: 1rem;
   cursor: pointer;
 }
+
+/* ----- 플로우(단계별 화면 전환) ----- */
+.flow-step-badge {
+  display: inline-block;
+  margin: 0 0 0.75rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+}
+
+.btn-flow-back {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn-flow-back:hover {
+  color: #334155;
+  background: #f8fafc;
+}
+
+.flow-card .result-desc {
+  margin-top: 0;
+}
+
+.flow-one-action-hint {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.flow-cta-full {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.flow-cta-secondary {
+  width: 100%;
+  margin-top: 0.65rem;
+}
+
+.flow-sim-inner {
+  margin-top: 0.5rem;
+  border: 1px solid #e0e7ff;
+  box-shadow: none;
+}
+
+.gain-ux--compact {
+  padding-top: 0.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.page-actions--flow {
+  margin-top: 1.5rem;
+}
