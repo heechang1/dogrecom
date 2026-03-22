@@ -1,6 +1,12 @@
 import React, { Component } from "react";
 import "./App.css";
 
+/** 앱 전체 접근용 비밀번호 (데모용 — 운영 시 서버 인증으로 교체 권장) */
+const PASSWORD = "1234";
+
+/** localStorage에 로그인 유지 여부 저장 키 */
+const AUTH_STORAGE_KEY = "auth";
+
 /**
  * 더미 추천 간식 (1회 기준 kcal 포함)
  */
@@ -565,7 +571,21 @@ class SnackSimulationExperience extends Component {
 class App extends Component {
   constructor(props) {
     super(props);
+    let initialAuthenticated = false;
+    try {
+      if (typeof localStorage !== "undefined") {
+        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (stored === "true") {
+          initialAuthenticated = true;
+        }
+      }
+    } catch (e) {
+      initialAuthenticated = false;
+    }
+
     this.state = {
+      isAuthenticated: initialAuthenticated,
+      inputPassword: "",
       page: "main",
       photoPreview: null,
       photoName: "",
@@ -578,7 +598,17 @@ class App extends Component {
       basisOpenById: {},
     };
     this.fileInputRef = React.createRef();
+    this.passwordInputRef = React.createRef();
     this.objectUrlRef = { current: null };
+  }
+
+  componentDidMount() {
+    if (!this.state.isAuthenticated) {
+      const inputEl = this.passwordInputRef.current;
+      if (inputEl) {
+        inputEl.focus();
+      }
+    }
   }
 
   componentWillUnmount() {
@@ -636,6 +666,36 @@ class App extends Component {
 
   goToResult = () => {
     this.setState({ page: "result" });
+  };
+
+  handleChange = (e) => {
+    this.setState({
+      inputPassword: e.target.value,
+    });
+  };
+
+  handleLogin = () => {
+    if (this.state.inputPassword === PASSWORD) {
+      try {
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem(AUTH_STORAGE_KEY, "true");
+        }
+      } catch (err) {
+        // 저장 실패 시에도 화면 진입은 허용
+      }
+      this.setState({
+        isAuthenticated: true,
+        inputPassword: "",
+      });
+    } else {
+      alert("비밀번호가 틀렸습니다.");
+    }
+  };
+
+  /** 폼 제출(Enter) 시 로그인 */
+  handleLoginSubmit = (e) => {
+    e.preventDefault();
+    this.handleLogin();
   };
 
   /** 간식별 시뮬레이터 패널 토글 */
@@ -825,6 +885,36 @@ class App extends Component {
     );
   }
 
+  renderLoginGate() {
+    return (
+      <div className="auth-gate">
+        <div className="auth-card card">
+          <h1 className="auth-title">접근 비밀번호 입력</h1>
+          <p className="auth-hint">서비스를 이용하려면 비밀번호를 입력하세요.</p>
+          <form className="auth-form" onSubmit={this.handleLoginSubmit} noValidate>
+            <label className="card-label" htmlFor="app-password">
+              비밀번호
+            </label>
+            <input
+              id="app-password"
+              ref={this.passwordInputRef}
+              className="input auth-input"
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              placeholder="비밀번호"
+              value={this.state.inputPassword}
+              onChange={this.handleChange}
+            />
+            <button type="submit" className="btn btn-primary auth-submit">
+              입장하기
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   renderResult() {
     const age = this.state.age;
     const weight = this.state.weight;
@@ -902,6 +992,10 @@ class App extends Component {
   }
 
   render() {
+    if (!this.state.isAuthenticated) {
+      return this.renderLoginGate();
+    }
+
     const page = this.state.page;
 
     return (

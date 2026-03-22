@@ -714,3 +714,58 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* ----- 앱 전체 비밀번호 게이트 ----- */
+.auth-gate {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  width: 100%;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.auth-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-align: center;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.auth-hint {
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+  text-align: center;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.auth-form .card-label {
+  text-align: left;
+}
+
+.auth-input {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  min-height: 48px;
+}
+
+.auth-submit {
+  margin-top: 0.25rem;
+}
