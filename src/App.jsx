@@ -7,30 +7,6 @@ const PASSWORD = "1234";
 /** localStorage에 로그인 유지 여부 저장 키 */
 const AUTH_STORAGE_KEY = "auth";
 
-/**
- * 더미 추천 간식 (1회 기준 kcal 포함)
- */
-const SNACK_RECOMMENDATIONS = [
-  {
-    id: 1,
-    name: "저알러지 연어 져키",
-    reason: "오메가-3가 풍부해 피부·털 건강에 도움이 됩니다.",
-    snackKcal: 38,
-  },
-  {
-    id: 2,
-    name: "무첨가 건조 닭가슴살 스트립",
-    reason: "고단백·저지방으로 활동량이 있는 아이에게 부담이 적습니다.",
-    snackKcal: 22,
-  },
-  {
-    id: 3,
-    name: "치아 관리 덴탈 스틱",
-    reason: "저작 활동을 유도해 구강 위생을 함께 챙길 수 있습니다.",
-    snackKcal: 55,
-  },
-];
-
 /** 활동량 UI 값 → 계수 (LOW / NORMAL / HIGH) */
 const ACTIVITY_FACTOR = {
   낮음: 1.2,
@@ -130,8 +106,9 @@ function runSimulate(weightKg, activityLabel, snackKcal) {
 }
 
 /**
- * 저칼로리 비교용 전체 간식 목록 (더미)
- * UI 설명(desc)은 카드에 표시
+ * 전체 간식 카탈로그 (추천 알고리즘 + 저칼로리 분기 + 시뮬 공통)
+ * - lowCal: 다이어트 모드에서 우선 추천
+ * - category: "고단백" 등 활동량 높음 분기에 사용
  */
 const snackList = [
   {
@@ -139,33 +116,129 @@ const snackList = [
     name: "연어 저키",
     kcal: 38,
     desc: "오메가-3와 단백질을 함께 챙기기 좋아요.",
+    reason: "오메가-3가 풍부해 피부·털 건강에 도움이 됩니다.",
+    lowCal: false,
+    category: "일반",
   },
   {
     id: 2,
     name: "닭가슴살 슬라이스",
     kcal: 25,
     desc: "저지방 고단백으로 칼로리 부담이 적은 편이에요.",
+    reason: "고단백·저지방으로 활동량이 있는 아이에게 부담이 적습니다.",
+    lowCal: true,
+    category: "고단백",
   },
   {
     id: 3,
     name: "고구마 스틱",
     kcal: 18,
     desc: "천연 단맛과 식이섬유로 적은 양으로도 만족감을 줄여 줘요.",
+    reason: "천연 탄수화물로 포만감을 주기 쉬워요.",
+    lowCal: true,
+    category: "일반",
   },
   {
     id: 4,
     name: "치아껌",
     kcal: 30,
     desc: "저작으로 치아 관리에 도움을 줄 수 있어요.",
+    reason: "저작 활동을 유도해 구강 위생을 함께 챙길 수 있습니다.",
+    lowCal: true,
+    category: "일반",
+  },
+  {
+    id: 5,
+    name: "건조 칠면조 스트립",
+    kcal: 28,
+    desc: "닭고기 대체 단백으로 알러지 부담을 줄일 수 있어요.",
+    reason: "단백질 보충에 적합한 저지방 간식입니다.",
+    lowCal: true,
+    category: "고단백",
   },
 ];
 
 /**
- * 현재 추천 간식보다 1회 kcal가 낮은 항목만 골라 최대 3개 추천
- * @param {number} currentKcal — 비교 기준 (기존 선택 간식의 1회 kcal)
+ * 배열 복사 후 Fisher-Yates 셔플 (균형·랜덤 추천용)
  */
-function pickLowerCalorieSnacks(currentKcal) {
-  const lower = snackList.filter(function (item) {
+function shuffleCopy(items) {
+  const arr = items.slice();
+  let i = arr.length;
+  while (i > 1) {
+    i -= 1;
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = arr[i];
+    arr[i] = arr[j];
+    arr[j] = t;
+  }
+  return arr;
+}
+
+/**
+ * 풀에서 최대 3개, 부족하면 전체 카탈로그에서 중복 없이 채움
+ */
+function pickUpToThreeUnique(pool, fullCatalog) {
+  const result = [];
+  const usedIds = {};
+  const shuffled = shuffleCopy(pool);
+  let i = 0;
+  while (result.length < 3 && i < shuffled.length) {
+    const s = shuffled[i];
+    i += 1;
+    if (!usedIds[s.id]) {
+      usedIds[s.id] = true;
+      result.push(s);
+    }
+  }
+  if (result.length < 3) {
+    const rest = shuffleCopy(fullCatalog);
+    let j = 0;
+    while (result.length < 3 && j < rest.length) {
+      const s = rest[j];
+      j += 1;
+      if (!usedIds[s.id]) {
+        usedIds[s.id] = true;
+        result.push(s);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * 사용자 조건에 맞는 간식 3개 추천
+ * @param {Array} list — snackList와 동일 스키마
+ * @param {Object} userInfo — weight(kg 문자열·숫자), activityLevel, dietNeeded
+ */
+function getRecommended(list, userInfo) {
+  const full = list.slice();
+  const dietNeeded = userInfo.dietNeeded === true;
+  const highActivity = userInfo.activityLevel === "높음";
+  let pool = full.slice();
+
+  if (dietNeeded) {
+    pool = full.filter(function (s) {
+      return s.lowCal === true;
+    });
+  } else if (highActivity) {
+    pool = full.filter(function (s) {
+      return s.category === "고단백";
+    });
+  }
+
+  if (pool.length === 0) {
+    pool = full.slice();
+  }
+
+  return pickUpToThreeUnique(pool, full);
+}
+
+/**
+ * 선택 간식보다 1회 kcal가 낮은 항목만, 최대 3개 (시뮬 surplus > 0 분기)
+ */
+function pickLowerCalorieSnacks(currentKcal, catalog) {
+  const source = catalog || snackList;
+  const lower = source.filter(function (item) {
     return item.kcal < currentKcal;
   });
   lower.sort(function (a, b) {
@@ -361,7 +434,13 @@ class SnackSimulationExperience extends Component {
     const basisBtnLabel = basisOpen ? "계산 근거 접기" : "계산 근거 보기";
 
     const showGainFlow = surplus > 0;
-    const recommendations = pickLowerCalorieSnacks(baseSnackKcal);
+    /** App에서 계산한 저칼로리 대안이 있으면 우선 사용 (시뮬 surplus > 0 연동) */
+    var recommendations;
+    if (this.props.alternativesOverride !== undefined) {
+      recommendations = this.props.alternativesOverride;
+    } else {
+      recommendations = pickLowerCalorieSnacks(baseSnackKcal, snackList);
+    }
     const self = this;
 
     const compareMainLabel = compareOpen
@@ -592,10 +671,18 @@ class App extends Component {
       age: "",
       weight: "",
       activity: "보통",
-      /** 간식 id → 시뮬레이터 패널 표시 여부 */
-      simulatorOpenById: {},
-      /** 간식 id → 계산 근거 펼침 여부 */
-      basisOpenById: {},
+      /** 목표: 다이어트 시 lowCal 간식 위주 추천 */
+      dietNeeded: false,
+      /** getRecommended(snackList, userInfo) 결과 (최대 3개) */
+      recommendedList: [],
+      /** 클릭해 시뮬레이션 중인 간식 */
+      selectedSnack: null,
+      /** simulate(snackKcal) 결과 캐시 */
+      simulationResult: null,
+      /** 시뮬 surplus > 0일 때 저칼로리 대안 */
+      alternatives: [],
+      /** 선택 간식 시뮬의 계산 근거 토글 */
+      basisOpenDetail: false,
     };
     this.fileInputRef = React.createRef();
     this.passwordInputRef = React.createRef();
@@ -645,11 +732,25 @@ class App extends Component {
   };
 
   goToInput = () => {
-    this.setState({ page: "input" });
+    this.setState({
+      page: "input",
+      selectedSnack: null,
+      simulationResult: null,
+      alternatives: [],
+      recommendedList: [],
+      basisOpenDetail: false,
+    });
   };
 
   goToMain = () => {
-    this.setState({ page: "main" });
+    this.setState({
+      page: "main",
+      selectedSnack: null,
+      simulationResult: null,
+      alternatives: [],
+      recommendedList: [],
+      basisOpenDetail: false,
+    });
   };
 
   handleAgeChange = (e) => {
@@ -664,8 +765,67 @@ class App extends Component {
     this.setState({ activity: e.target.value });
   };
 
+  handleDietNeededChange = (e) => {
+    this.setState({ dietNeeded: e.target.checked });
+  };
+
+  /**
+   * 1회 kcal 기준 시뮬 (runSimulate 래핑)
+   */
+  simulate(snackKcal) {
+    const w = this.parseWeightKg(this.state.weight);
+    if (w === null) {
+      return null;
+    }
+    return runSimulate(w, this.state.activity, snackKcal);
+  }
+
+  /** 추천 간식 선택 → 시뮬 실행 + surplus 시 저칼로리 대안 */
+  selectRecommendedSnack = (snack) => {
+    const sim = this.simulate(snack.kcal);
+    let alts = [];
+    if (sim && sim.surplus > 0) {
+      alts = pickLowerCalorieSnacks(snack.kcal, snackList);
+    }
+    this.setState({
+      selectedSnack: snack,
+      simulationResult: sim,
+      alternatives: alts,
+      basisOpenDetail: false,
+    });
+  };
+
+  /** 다른 추천 간식을 고를 때 */
+  clearSnackSelection = () => {
+    this.setState({
+      selectedSnack: null,
+      simulationResult: null,
+      alternatives: [],
+      basisOpenDetail: false,
+    });
+  };
+
+  toggleBasisDetail = () => {
+    this.setState(function (prev) {
+      return { basisOpenDetail: !prev.basisOpenDetail };
+    });
+  };
+
   goToResult = () => {
-    this.setState({ page: "result" });
+    const userInfo = {
+      weight: this.state.weight,
+      activityLevel: this.state.activity,
+      dietNeeded: this.state.dietNeeded,
+    };
+    const recommended = getRecommended(snackList, userInfo);
+    this.setState({
+      page: "result",
+      recommendedList: recommended,
+      selectedSnack: null,
+      simulationResult: null,
+      alternatives: [],
+      basisOpenDetail: false,
+    });
   };
 
   handleChange = (e) => {
@@ -696,26 +856,6 @@ class App extends Component {
   handleLoginSubmit = (e) => {
     e.preventDefault();
     this.handleLogin();
-  };
-
-  /** 간식별 시뮬레이터 패널 토글 */
-  toggleSimulatorForSnack = (snackId) => {
-    this.setState(function (prevState) {
-      const next = Object.assign({}, prevState.simulatorOpenById);
-      const prevVal = next[snackId];
-      next[snackId] = !prevVal;
-      return { simulatorOpenById: next };
-    });
-  };
-
-  /** 계산 근거(토글) */
-  toggleBasisForSnack = (snackId) => {
-    this.setState(function (prevState) {
-      const next = Object.assign({}, prevState.basisOpenById);
-      const prevVal = next[snackId];
-      next[snackId] = !prevVal;
-      return { basisOpenById: next };
-    });
   };
 
   /**
@@ -828,6 +968,17 @@ class App extends Component {
               <option value="높음">높음 (산책·놀이 많음) — 계수 2.0</option>
             </select>
           </div>
+          <div className="field field-diet">
+            <label className="diet-check-label">
+              <input
+                type="checkbox"
+                className="diet-check-input"
+                checked={this.state.dietNeeded}
+                onChange={this.handleDietNeededChange}
+              />
+              <span>다이어트·체중 관리 필요 (저칼로리 간식 위주 추천)</span>
+            </label>
+          </div>
         </div>
         <div className="page-actions">
           <button
@@ -846,42 +997,6 @@ class App extends Component {
           </button>
         </div>
       </>
-    );
-  }
-
-  renderSimulatorForSnack(item) {
-    const weightKg = this.parseWeightKg(this.state.weight);
-    const activity = this.state.activity;
-    const open = this.state.simulatorOpenById[item.id];
-    const basisOpen = this.state.basisOpenById[item.id];
-
-    if (!open) {
-      return null;
-    }
-
-    let invalidReason = null;
-    if (weightKg === null) {
-      invalidReason =
-        "시뮬레이션을 보려면 입력 화면에서 유효한 체중(kg)을 입력해 주세요.";
-    }
-
-    const self = this;
-    const snackId = item.id;
-
-    return (
-      <SnackSimulationExperience
-        key={"sim-" + item.id}
-        invalidReason={invalidReason}
-        weightKg={weightKg}
-        activityLabel={activity}
-        baseSnackId={item.id}
-        baseSnackName={item.name}
-        baseSnackKcal={item.snackKcal}
-        basisOpen={Boolean(basisOpen)}
-        onToggleBasis={function () {
-          self.toggleBasisForSnack(snackId);
-        }}
-      />
     );
   }
 
@@ -921,54 +1036,96 @@ class App extends Component {
     const activity = this.state.activity;
     const ageText = age ? age + "세" : "정보 미입력";
     const weightText = weight ? weight + "kg" : "정보 미입력";
+    const dietNeeded = this.state.dietNeeded;
+    const recommendedList = this.state.recommendedList;
+    const selectedSnack = this.state.selectedSnack;
+    const weightKg = this.parseWeightKg(this.state.weight);
 
     const self = this;
+
+    let invalidReason = null;
+    if (weightKg === null) {
+      invalidReason =
+        "시뮬레이션을 보려면 입력 화면에서 유효한 체중(kg)을 입력해 주세요.";
+    }
 
     return (
       <>
         <div className="card">
           <p className="result-desc">
             <strong>{ageText}</strong>, 체중 <strong>{weightText}</strong>,
-            활동량 <strong>{activity}</strong> 기준으로 골랐어요. 각 간식에서
-            시뮬레이션으로 급여 영향을 확인한 뒤, 근거를 펼쳐 보세요.
+            활동량 <strong>{activity}</strong>
+            {dietNeeded ? ", 다이어트 목표 반영" : ""} 기준 맞춤 추천이에요.
+            간식을 선택하면 시뮬레이션이 열리고, 체중 증가 우려 시 저칼로리 대안이
+            이어집니다.
           </p>
           <p className="result-flow-hint">
-            추천 → 시뮬레이션 → 행동 가이드 → 계산 근거
+            추천 선택 → 시뮬레이션 → (증가 시) 저칼로리 대안 → 다시 선택
           </p>
 
           <div className="snack-grid">
-            {SNACK_RECOMMENDATIONS.map(function (item, index) {
-              const simOpen = Boolean(self.state.simulatorOpenById[item.id]);
-              const simLabel = simOpen ? "시뮬레이션 닫기" : "시뮬레이션 보기";
+            {recommendedList.map(function (item, index) {
+              const isSelected = selectedSnack && selectedSnack.id === item.id;
+              const blockClass = "snack-block" + (isSelected ? " snack-block--selected" : "");
 
               return (
-                <div className="snack-block" key={item.id}>
-                  <div className="snack-item">
-                    <span className="snack-rank">{index + 1}</span>
-                    <div className="snack-body">
-                      <h3>{item.name}</h3>
-                      <p>{item.reason}</p>
-                      <p className="snack-kcal">
-                        1회 기준 약 <strong>{item.snackKcal}</strong> kcal
-                        <span className="snack-kcal-note"> (하루 2회 가정)</span>
-                      </p>
-                    </div>
-                  </div>
+                <div className={blockClass} key={item.id}>
                   <button
                     type="button"
-                    className="btn btn-sim"
+                    className="snack-select-hit"
                     onClick={function () {
-                      self.toggleSimulatorForSnack(item.id);
+                      self.selectRecommendedSnack(item);
                     }}
-                    aria-expanded={simOpen}
                   >
-                    {simLabel}
+                    <span className="snack-item">
+                      <span className="snack-rank">{index + 1}</span>
+                      <span className="snack-body">
+                        <span className="snack-body-title">{item.name}</span>
+                        <span className="snack-body-reason">{item.reason}</span>
+                        <span className="snack-kcal">
+                          1회 기준 약 <strong>{item.kcal}</strong> kcal
+                          <span className="snack-kcal-note"> (하루 2회 가정)</span>
+                        </span>
+                      </span>
+                    </span>
                   </button>
-                  {self.renderSimulatorForSnack(item)}
+                  <p className="snack-tap-hint">탭하여 시뮬레이션</p>
                 </div>
               );
             })}
           </div>
+
+          {selectedSnack ? (
+            <div className="sim-after-select">
+              <div className="sim-after-select-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm-clear"
+                  onClick={this.clearSnackSelection}
+                >
+                  다른 간식 선택
+                </button>
+              </div>
+              <SnackSimulationExperience
+                key={"sim-" + selectedSnack.id}
+                invalidReason={invalidReason}
+                weightKg={weightKg}
+                activityLabel={activity}
+                baseSnackId={selectedSnack.id}
+                baseSnackName={selectedSnack.name}
+                baseSnackKcal={selectedSnack.kcal}
+                basisOpen={this.state.basisOpenDetail}
+                onToggleBasis={this.toggleBasisDetail}
+                alternativesOverride={
+                  this.state.simulationResult && this.state.simulationResult.surplus > 0
+                    ? this.state.alternatives
+                    : undefined
+                }
+              />
+            </div>
+          ) : (
+            <p className="select-snack-prompt">위 추천 중 하나를 눌러 시뮬레이션을 시작하세요.</p>
+          )}
         </div>
 
         <div className="page-actions">
