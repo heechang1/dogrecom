@@ -10,6 +10,10 @@ export function LoginForm() {
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    console.log("[dogRecom] 메인(로그인) 화면 로드");
+  }, []);
+
+  useEffect(() => {
     if (!authReady || isAuthenticated) return;
     passwordInputRef.current?.focus();
   }, [authReady, isAuthenticated]);
