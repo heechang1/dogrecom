@@ -4,9 +4,13 @@ node_modules
 # Build
 dist
 dist-ssr
+.next
+out
 *.local
 
-# Environment
+# Environment (비밀키·로컬 설정 — 커밋 금지)
+# - .env.local, .env.development.local 등은 .env.* 에 포함되어 무시됨
+# - 기타 *.local 파일도 상단 *.local 규칙으로 무시됨
 .env
 .env.*
 !.env.example

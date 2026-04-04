@@ -1,0 +1,27 @@
+[
+  {
+    "dogId": "1",
+    "date": "2026-03-29",
+    "amount": 50
+  },
+  {
+    "dogId": "1",
+    "date": "2026-03-29",
+    "amount": 50
+  },
+  {
+    "dogId": "1",
+    "date": "2026-03-29",
+    "amount": 50
+  },
+  {
+    "dogId": "1",
+    "date": "2026-04-04",
+    "amount": 100,
+    "foodName": "닥터독 저지방 다이어트",
+    "period": "morning",
+    "reaction": "good",
+    "kcal": 320,
+    "recommendedAmount": 100
+  }
+]
