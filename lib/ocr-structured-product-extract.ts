@@ -107,7 +107,7 @@ export function extractProductName(text: string): string {
     return "";
   }
   const start = m.index + m[0].length;
-  let rest = t.slice(start);
+  const rest = t.slice(start);
   const oneLine = rest.replace(/\s+/g, " ");
   const end = sliceBeforeEarliestPhrase(oneLine, PRODUCT_NAME_STOP_PHRASES);
   return oneLine.slice(0, end).replace(/\s+/g, " ").trim();

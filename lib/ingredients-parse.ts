@@ -1,5 +1,3 @@
-import { INGREDIENT_DICT } from "@/lib/ingredient-dict";
-
 /** 파싱 결과 (향후 GPT 보정 단계에서 동일 형태 유지) */
 export type IngredientsParseResult = {
   ingredients: string[];

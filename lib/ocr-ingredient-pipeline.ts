@@ -113,7 +113,7 @@ function extractAfterKeyword(normalized: string): string {
     return "";
   }
 
-  let after = normalized.slice(end).replace(/^\s+/, "");
+  const after = normalized.slice(end).replace(/^\s+/, "");
   const take = Math.min(after.length, BLOCK_AFTER_KEYWORD_MAX);
   let windowed = after.slice(0, take);
   const star = windowed.indexOf("※");
@@ -205,7 +205,7 @@ export function splitIngredientTokens(block: string): string[] {
     return [];
   }
 
-  let s = block.replace(/，|、/g, ",");
+  const s = block.replace(/，|、/g, ",");
   const result: string[] = [];
   let depth = 0;
   let cur = "";

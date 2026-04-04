@@ -57,7 +57,7 @@ export async function runFoodTextParsePipeline(
   }
 
   let parsed: FoodParsedSnapshot = postProcessAiFoodJson(aiRaw);
-  let fallbackUsed = !isParsedUsable(parsed);
+  const fallbackUsed = !isParsedUsable(parsed);
 
   if (fallbackUsed) {
     console.warn(
