@@ -7,6 +7,8 @@ dist-ssr
 .next
 out
 *.local
+*.tsbuildinfo
+build-out.txt
 
 # Environment (비밀키·로컬 설정 — 커밋 금지)
 # - .env.local, .env.development.local 등은 .env.* 에 포함되어 무시됨
